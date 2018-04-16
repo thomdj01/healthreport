@@ -1,7 +1,7 @@
 #bin/bash
 
 #This Script Will Produce the necessary CSVs for the health check word document deliverable
-#version 1.1
+#version 1.2
 #Dietrick Thomas
 #
 #
