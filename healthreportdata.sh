@@ -736,6 +736,36 @@ group by $units.name,$deliveries.status
 to '$filedir/deliveryhealth.csv' CSV header delimiter ','" extension_prod
 
 
+
+#Compute the max and averages
+
+#max deliveries
+linebreak
+printf "Max Deliveries: " >> $worddata
+cut -d, -f3 $filedir/alertsanddeliveriesdaily.csv | sort -n | tail >>  $worddata
+
+#max alerts
+linebreak
+printf "Max Alerts: " >> $worddata
+cut -d, -f2 $filedir/alertsanddeliveriesdaily.csv | sort -n | tail
+
+#average deliveries
+linebreak
+printf "Average Deliveries: " >> $worddata
+cut -d, -f3 $filedir/alertsanddeliveriesdaily.csv | sed '1d' | awk '{s+=$1} END {print s/15}'
+
+#average alerts
+linebreak
+printf "Average Alerts: " >> $worddata
+cut -d, -f2 $filedir/alertsanddeliveriesdaily.csv | sed '1d' | awk '{s+=$1} END {print s/15}'
+linebreak
+
+
+
+
+
+
+
 ##Server health
 
 
