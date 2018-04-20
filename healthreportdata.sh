@@ -1,7 +1,7 @@
 #bin/bash
 
 #This Script Will Produce the necessary CSVs for the health check word document deliverable
-#version 1.2
+#version 1.3
 #Dietrick Thomas
 #
 #
@@ -742,28 +742,136 @@ to '$filedir/deliveryhealth.csv' CSV header delimiter ','" extension_prod
 #max deliveries
 linebreak
 printf "Max Deliveries: " >> $worddata
-cut -d, -f3 $filedir/alertsanddeliveriesdaily.csv | sort -n | tail >>  $worddata
+cut -d, -f3 $filedir/alertsanddeliveriesdaily.csv | sort -n | tail | awk END{print} >>  $worddata
 
 #max alerts
 linebreak
 printf "Max Alerts: " >> $worddata
-cut -d, -f2 $filedir/alertsanddeliveriesdaily.csv | sort -n | tail
+cut -d, -f2 $filedir/alertsanddeliveriesdaily.csv | sort -n | tail | awk END{print} >>  $worddata
 
 #average deliveries
 linebreak
 printf "Average Deliveries: " >> $worddata
-cut -d, -f3 $filedir/alertsanddeliveriesdaily.csv | sed '1d' | awk '{s+=$1} END {print s/15}'
+cut -d, -f3 $filedir/alertsanddeliveriesdaily.csv | sed '1d' | awk '{s+=$1} END {print s/15}'  >>  $worddata
 
 #average alerts
 linebreak
 printf "Average Alerts: " >> $worddata
-cut -d, -f2 $filedir/alertsanddeliveriesdaily.csv | sed '1d' | awk '{s+=$1} END {print s/15}'
+cut -d, -f2 $filedir/alertsanddeliveriesdaily.csv | sed '1d' | awk '{s+=$1} END {print s/15}' >>  $worddata
 linebreak
 
+echo "Collecting Delivery Health Information..."
+
+#get unit names
+
+awk 'BEGIN {FS=OFS=","} \
+NR>1 \
+{a[$1]} \
+END {for (i in a) {print i,a[i]}}' $filedir/deliveryhealth.csv > $filedir/deliveryhealthunits.txt
 
 
+#if the top line is a comma name it 'No Unit'
+
+#set variable for 0
+count=0
+
+#echo $count
+
+#set variable for how many units there are in the file
+
+unitAmount=`wc -l <  $filedir/deliveryhealthunits.txt`
+
+#echo "Units found: $unitAmount"
+
+printf "Delivery Health:\n\n\n" >> $worddata
+printf "Unit\tDeliveries\tErrors\t\tDelivery Health\n" >> $worddata
+printf "==========================================================================\n" >> $worddata
+
+#Make the loop run for the amount of units it has, use the top lines for variable usage
+while [ $count -lt  $unitAmount ]
+
+        do
+		
+		#echo "Loop"
+		
+        #Set variable to the first line
+        unitName=$(sed -n 1p $filedir/deliveryhealthunits.txt)
+		
+		
+		#If the variable is just a comma, that means there is no unit associated with it, so name it No Unit.
+		#Need to do different calculations for this as well because it will find the comma everywhere in the grep statements
+		if [ "$unitName" == "," ] ;
+			then {
+			
+			unitName="No Unit"
+			
+			echo $unitName
+			
+			#Change the line to read No Unit, instead of just a comma
+			sudo grep "^." $filedir/deliveryhealthunits.txt | sed -i "1 s/,/$unitName/" $filedir/deliveryhealthunits.txt
+			#Get delivered numbers for unit names
+			deliveries=`grep "^," $filedir/deliveryhealth.csv | grep "Delivered" | awk -F, '{ print $3 }'`
+			echo "deliveries: $deliveries"
+			#get errored numbers for unit names
+			errors=`grep "^," $filedir/deliveryhealth.csv | grep "Error" | awk -F, '{ print $3 }'`
+			echo "errors: $errors"
+			#calculate the delivery health
+			deliveryHealth=`bc -l <<< "scale=4; (100-($errors/$deliveries))"`
+			echo "delivery health: $deliveryHealth"
+			
+			printf "$unitName\t" >> $worddata
+			printf "$deliveries\t" >> $worddata
+			printf "$errors\t" >> $worddata
+			printf "\t$deliveryHealth" >> $worddata
+			printf "\n" >> $worddata
+			
+			
+			
+			}
+			
+			#if the variable is a normal unit, take the comma off of the end.
+			else {
+			
+			unitName=`echo "$unitName" | sed "s/,//g"`
+			echo $unitName
+			#Get delivered numbers for unit names
+			deliveries=`grep "$unitName" $filedir/deliveryhealth.csv | grep "Delivered" | awk -F, '{ print $3 }'`
+			echo "deliveries: $deliveries"
+			#get errored numbers for unit names
+			errors=`grep "$unitName" $filedir/deliveryhealth.csv | grep "Error" | awk -F, '{ print $3 }'`
+			echo "errors: $errors"
+			#calculate the delivery health
+			deliveryHealth=`bc -l <<< "scale=4; (100-($errors/$deliveries))"`
+			echo "delivery health: $deliveryHealth"
+			
+			
+			printf "$unitName\t" >> $worddata
+			printf "$deliveries\t" >> $worddata
+			printf "$errors\t" >> $worddata
+			printf "\t$deliveryHealth" >> $worddata
+			printf "\n" >> $worddata
+			
+			}
+			
+		fi
+		
+		
+		
+		
+       
+        #Remove the line that was used for the variable unitName
+        sed -i 1d $filedir/deliveryhealthunits.txt
+
+        #Increment variable
+		((count++))
+	
+	
+done
+
+sudo rm $filedir/deliveryhealthunits.txt
 
 
+linebreak
 
 
 ##Server health
